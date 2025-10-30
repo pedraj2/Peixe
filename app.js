@@ -95,16 +95,3 @@ window.addEventListener('resize', () => {
 
 // Inicia o loop de animação!
 animate();
-    renderer.render(scene, camera);
-}
-
-// ----- 8. RESPONSIVIDADE (AJUSTE DE JANELA) -----
-// Atualiza a câmera e o renderizador quando a janela muda de tamanho
-window.addEventListener('resize', () => {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-});
-
-// Inicia o loop de animação!
-animate();
