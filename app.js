@@ -1,90 +1,65 @@
 import * as THREE from 'three';
-// Importa os 'addons' necessários:
-import { OBJLoader } from 'three/addons/loaders/OBJLoader.js'; // Para carregar o modelo .obj
-import { OrbitControls } from 'three/addons/controls/OrbitControls.js'; // Para controlar a câmera com o mouse
+// IMPORTANTE: Trocamos o OBJLoader pelo GLTFLoader
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // ----- 1. CONFIGURAÇÃO BÁSICA (CENA, CÂMERA, RENDERIZADOR) -----
+// (Isto permanece igual)
 
-// Cena: Onde todos os objetos, luzes e câmeras vivem.
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xbfd1e5); // Um fundo azul-acinzentado claro
+scene.background = new THREE.Color(0xbfd1e5); // Fundo
 
-// Câmera: Como vemos a cena.
-// PerspectiveCamera(campo de visão, aspect ratio, plano próximo, plano distante)
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-camera.position.z = 5; // Afasta a câmera para podermos ver o objeto
+camera.position.z = 5;
 
-// Renderizador: "Desenha" a cena na tela.
-const renderer = new THREE.WebGLRenderer({ antialias: true }); // antialias suaviza as bordas
+const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
-document.getElementById('container').appendChild(renderer.domElement); // Adiciona o canvas ao HTML
+// Adiciona o antialiasing de tom (melhora as cores e luzes)
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+document.getElementById('container').appendChild(renderer.domElement);
 
-// ----- 2. ILUMINAÇÃO (ESSENCIAL) -----
-// Um material com 'normalMap' (MeshStandardMaterial) precisa de luz para funcionar.
+// ----- 2. ILUMINAÇÃO -----
+// (Isto permanece igual e é ESSENCIAL para materiais GLB)
 
-// Luz Ambiente: Ilumina todos os objetos uniformemente.
-const ambientLight = new THREE.AmbientLight(0xffffff, 0.6); // Cor branca, 60% de intensidade
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.8); // Luz ambiente um pouco mais forte
 scene.add(ambientLight);
 
-// Luz Direcional: Simula a luz do sol.
-const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0); // Cor branca, 100% de intensidade
-directionalLight.position.set(5, 10, 7.5); // Posição da luz
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1.5);
+directionalLight.position.set(5, 10, 7.5);
 scene.add(directionalLight);
 
 // ----- 3. CONTROLES DE CÂMERA -----
-// Permite ao usuário girar a cena com o mouse
+// (Isto permanece igual)
+
 const controls = new OrbitControls(camera, renderer.domElement);
-controls.enableDamping = true; // Adiciona um efeito suave de "desaceleração"
+controls.enableDamping = true;
 controls.dampingFactor = 0.05;
+// Tente adicionar autoRotate para um efeito legal (opcional)
+// controls.autoRotate = true; 
+// controls.autoRotateSpeed = 1.0;
 
-// ----- 4. CARREGAMENTO (MODELO E TEXTURAS) -----
+// ----- 4. CARREGAMENTO DO MODELO GLB -----
+// (Esta é a principal mudança)
 
-// **SUBSTITUA PELOS CAMINHOS DOS SEUS ARQUIVOS**
-const MODEL_PATH = 'modelos/seu_modelo.obj';
-const DIFFUSE_TEXTURE_PATH = 'texturas/sua_textura_diffuse.jpg';
-const NORMAL_TEXTURE_PATH = 'texturas/sua_textura_normal.jpg';
+// **SUBSTITUA PELO CAMINHO DO SEU ARQUIVO GLB**
+const GLB_MODEL_PATH = 'modelos/seu_modelo.glb';
 
-// Inicializa os 'loaders'
-const textureLoader = new THREE.TextureLoader();
-const objLoader = new OBJLoader();
+// Inicializa o loader
+const loader = new GLTFLoader();
 
-// Carrega as texturas
-const diffuseMap = textureLoader.load(DIFFUSE_TEXTURE_PATH);
-const normalMap = textureLoader.load(NORMAL_TEXTURE_PATH);
+// Carrega o arquivo
+loader.load(
+    GLB_MODEL_PATH,
+    // 1. Função de SUCESSO
+    (gltf) => {
+        // O GLTFLoader já processou tudo:
+        // - Geometria
+        // - Materiais (com diffuse, normal, roughness, etc.)
+        // - Mapeamento UV (já corrigido!)
 
-// Configura o 'wrapping' e repetição, se necessário (opcional)
-// diffuseMap.wrapS = THREE.RepeatWrapping;
-// diffuseMap.wrapT = THREE.RepeatWrapping;
-// diffuseMap.repeat.set(2, 2);
-
-// ----- 5. CRIAÇÃO DO MATERIAL -----
-// Este é o passo chave onde combinamos as texturas.
-// Usamos MeshStandardMaterial, que é um material PBR (Physically Based Rendering)
-// que entende mapas de 'diffuse' (cor) e 'normal' (detalhe).
-const material = new THREE.MeshStandardMaterial({
-    map: diffuseMap,       // 'map' é o canal de cor (diffuse)
-    normalMap: normalMap,  // 'normalMap' é o canal de normais
-    
-    // Você pode ajustar 'roughness' (rugosidade) e 'metalness' (metalicidade)
-    // roughness: 0.5,
-    // metalness: 0.2
-});
-
-// ----- 6. CARREGAMENTO DO MODELO .OBJ -----
-objLoader.load(
-    MODEL_PATH,
-    // 1. Função de SUCESSO (chamada quando o modelo carrega)
-    (object) => {
-        // O .obj pode ser um grupo com várias malhas (meshes)
-        // Precisamos percorrer todos os "filhos" e aplicar nosso material
-        object.traverse((child) => {
-            if (child.isMesh) {
-                child.material = material;
-            }
-        });
-
-        // Adiciona o modelo carregado à cena
-        scene.add(object);
+        // gltf.scene contém o modelo 3D
+        scene.add(gltf.scene);
     },
     // 2. Função de PROGRESSO (opcional)
     (xhr) => {
@@ -92,19 +67,34 @@ objLoader.load(
     },
     // 3. Função de ERRO
     (error) => {
-        console.error('Ocorreu um erro ao carregar o modelo:', error);
+        console.error('Ocorreu um erro ao carregar o modelo GLB:', error);
     }
 );
 
-// ----- 7. LOOP DE ANIMAÇÃO (RENDERIZAÇÃO) -----
-// Esta função é chamada 60x por segundo
+// ----- 5. LOOP DE ANIMAÇÃO (RENDERIZAÇÃO) -----
+// (Isto permanece igual)
+
 function animate() {
     requestAnimationFrame(animate);
 
-    // Atualiza os controles de órbita (para o damping funcionar)
+    // Atualiza os controles de órbita
     controls.update();
 
-    // Renderiza a cena a partir da perspectiva da câmera
+    // Renderiza a cena
+    renderer.render(scene, camera);
+}
+
+// ----- 6. RESPONSIVIDADE (AJUSTE DE JANELA) -----
+// (Isto permanece igual)
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Inicia o loop de animação!
+animate();
     renderer.render(scene, camera);
 }
 
